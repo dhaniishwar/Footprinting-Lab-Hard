@@ -16,7 +16,7 @@
 
 ---
 
-***Tools Used:***
+***Tools Used :***
 - nmap
 - onesixtyone
 - snmpwalk
@@ -26,7 +26,7 @@
 
 ---
 
-***Port Scanning:***
+***Port Scanning :***
 
 &nbsp;&nbsp;&nbsp;&nbsp;I started by splitting the TCP scans into two separate runs. The reason is simple — running them together is slow. First, Scan all the ports and say which prots are open.
 <br>
@@ -72,7 +72,7 @@ nmap -sV -sC -sU -p 161 10.129.202.20
 
 ---
 
-***SNMP Enumeration:***
+***SNMP Enumeration :***
 
 &nbsp;&nbsp;&nbsp;&nbsp;SNMP (Simple Network Management Protocol) is used to monitor and manage network devices. It uses community strings like passwords(v2c). Even though nmap repoted SNMPv3 that does not mean SNMPv2c is disable. lets check by the tool onesixtyone to see if community strings respond. If they do, you know v2c is still active.
 <br>
@@ -98,7 +98,7 @@ snmpwalk -v2c -c backup 10.129.202.20
 &nbsp;&nbsp;&nbsp;&nbsp;By the SNMP Enumertion with snmpwalk, we got Credential = tom:NMds732Js2761.By this credential, we can enumerat into IMAP port.
 
 ---
-***IMAP Enumeration:***
+***IMAP Enumeration :***
 
 &nbsp;&nbsp;&nbsp;&nbsp;With the credentials for tom, we can now access the mail server directly over IMAPS.
 <br>
@@ -110,7 +110,7 @@ curl -k imaps://10.129.202.20 --user tom:NMds732Js2761
 <img width="400" height="83" alt="h-8" src="https://github.com/user-attachments/assets/d0d6ed9b-50fd-4836-b7a2-c79aa20d5d7e" />
 
 <br>
-&nbsp;&nbsp;&nbsp;&nbsp;We found five mail boxes. Let's check for email in INBOX
+&nbsp;&nbsp;&nbsp;&nbsp;We found five mailboxes. Let's check for email in INBOX
 <br><br>
 
 ```bash
@@ -134,7 +134,7 @@ This is huge. We have a private SSH key. we need to copy it exactly, save it to 
 <br><br>
 
 ---
-***Access SHH:***
+***Access SSH :***
 
 &nbsp;&nbsp;&nbsp;&nbsp; Save the private key
 <br>
@@ -158,8 +158,57 @@ ssh tom@10.129.202.20 -i id_rsa
 <img width="469" height="151" alt="h-11" src="https://github.com/user-attachments/assets/7aa520f3-4b7d-413a-95ee-d270256b38d1" />
 
 <br>
-&nbsp;&nbsp;&nbsp;&nbsp; We have successfully logined as tom.Now I need to figure out what I can access and where the flag might be. First I check what is in tom's home directory, then I look at who else is on this machine
+&nbsp;&nbsp;&nbsp;&nbsp; We successfully logined in. Now I need to figure out what I can access and where the flag might be. First I check what is in tom's home directory, then I look at who else is on this machine
 <br><br>
 
 <img width="485" height="567" alt="h-12" src="https://github.com/user-attachments/assets/ddbb1a9e-551a-4fb9-a006-835462512eb2" />
 
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; I ran ls -al in the home directory to see everything including hidden files. Seeing a MySQL history file told me straight away that tom had been using a local database. I confromed by .bash_history and .mysql_history.
+<br><br>
+
+```bash
+cat ~/.mysql_history
+cat ~/.bash_history
+```
+
+<img width="302" height="621" alt="h-13" src="https://github.com/user-attachments/assets/71baa98c-0572-475c-aff9-3da445c9a998" />
+<br>
+<img width="112" height="48" alt="h-14" src="https://github.com/user-attachments/assets/f445f304-7a62-43c1-a8ad-bc077577a942" />
+
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; From .mysql_history revealed repeated queries against a users database and tom has a previously logged into MySQL. let's login into MySQL as a tom
+<br><br>
+
+```bash
+mysql -u tom -p
+```
+
+<img width="479" height="162" alt="h-15" src="https://github.com/user-attachments/assets/67eeaf29-bf9c-4b82-aeaa-c3fa58b54d37" />
+
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; Successfully logged into MySQL. Now, let get table which as username and password.
+<br><br>
+
+```bash
+SHOW databases;
+USE users;
+SHOW tables;
+DESCRIBE users;
+SELECT * FROM users;
+```
+
+<img width="412" height="625" alt="h-16" src="https://github.com/user-attachments/assets/dca5b81e-b1d4-4243-99df-47271bb25738" />
+
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; The table contained multiple usernames and passwords. The target HTB password was found here.
+<br><br>
+
+<h3 align = center> Goal Achieved </h3>
+
+---
+***Summary :***
+
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; A TCP scan revealed a mail server, and a follow-up UDP scan uncovered a misconfigured SNMP service. Brute-forcing the community string exposed tom's credentials sitting in a process table. Those credentials unlocked the mail server where a private SSH key was found inside an email. SSH access led to bash and MySQL history files revealing a local database. The same password reused on MySQL exposed a users table with the target password stored in plaintext.
+<br><br>
